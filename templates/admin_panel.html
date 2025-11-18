@@ -29,29 +29,29 @@
             <h2 class="h5 mb-0">Zarządzaj lokalizacjami</h2>
           </div>
         </div>
-        <form method="post" action="{{ url_for('set_locations') }}" class="row g-3">
+        <form method="post" action="{{ url_for('set_locations') }}" class="row g-3" id="locationsForm">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="col-12">
-            <label class="form-label">Adres ceremonii</label>
+          <div class="col-12" data-location-section="ceremony" data-field="address">
+            <label class="form-label" data-loc-label="ceremony-address">Adres ceremonii</label>
             <input name="wedding_location" class="form-control" value="{{ wedding_loc }}" placeholder="np. Kościół św. Anny, Kraków">
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Etykieta ceremonii</label>
+          <div class="col-md-6" data-location-section="ceremony" data-field="label">
+            <label class="form-label" data-loc-label="ceremony-label">Etykieta ceremonii</label>
             <input name="wedding_label" class="form-control" value="{{ wedding_label if wedding_label is defined else '' }}" placeholder="Ceremonia">
           </div>
-          <div class="col-md-6">
-            <label class="form-label">Mapa Google (ceremonia)</label>
+          <div class="col-md-6" data-location-section="ceremony" data-field="map">
+            <label class="form-label" data-loc-label="ceremony-map">Mapa Google (ceremonia)</label>
             <input name="wedding_map_url" class="form-control" value="{{ wedding_map_url }}" placeholder="https://...">
           </div>
-          <div class="col-12">
+          <div class="col-12" data-location-section="reception" data-field="address">
             <label class="form-label">Adres przyjęcia</label>
             <input name="reception_location" class="form-control" value="{{ reception_loc }}" placeholder="np. Dwór, ul. ...">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-6" data-location-section="reception" data-field="label">
             <label class="form-label">Etykieta przyjęcia</label>
             <input name="reception_label" class="form-control" value="{{ reception_label if reception_label is defined else '' }}" placeholder="Przyjęcie">
           </div>
-          <div class="col-md-6">
+          <div class="col-md-6" data-location-section="reception" data-field="map">
             <label class="form-label">Mapa Google (przyjęcie)</label>
             <input name="reception_map_url" class="form-control" value="{{ reception_map_url }}" placeholder="https://...">
           </div>
@@ -59,7 +59,7 @@
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" role="switch" id="sameLocationSwitch" name="same_location_flag" {% if same_location %}checked{% endif %}>
               <label class="form-check-label" for="sameLocationSwitch">Ślub i przyjęcie w tym samym miejscu</label>
-              <div class="form-text">Gdy zaznaczone, na stronie zaproszenia pokażemy jeden wpis zamiast dwóch.</div>
+              <div class="form-text" id="sameLocationHelp">Gdy zaznaczone, na stronie zaproszenia pokażemy jeden wpis zamiast dwóch.</div>
             </div>
           </div>
           <div class="col-12">
@@ -80,16 +80,9 @@
           </div>
           <div class="col-sm-6 col-12">
             <div class="summary-card text-center h-100">
-              <h6>Łącznie gości</h6>
+              <h6>Łącznie potwierdzonych gości</h6>
               <strong>{{ summary.total_guests }}</strong>
-              <p class="mb-0 text-muted small">osób potwierdzonych</p>
-            </div>
-          </div>
-          <div class="col-sm-6 col-12">
-            <div class="summary-card text-center h-100">
-              <h6>Dzieci</h6>
-              <strong>{{ summary.total_children }}</strong>
-              <p class="mb-0 text-muted small">zapowiedzianych</p>
+              <p class="mb-0 text-muted small">w tym dzieci {{ summary.total_children }}</p>
             </div>
           </div>
           <div class="col-sm-6 col-12">
@@ -103,6 +96,92 @@
       </section>
     </div>
   </div>
+
+  <section class="glass-card mt-4 animate-in">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-calendar2-week fs-4 text-success"></i>
+      <div>
+        <p class="eyebrow mb-1">Plan dnia</p>
+        <h2 class="h5 mb-0">Zarządzaj wydarzeniami harmonogramu</h2>
+      </div>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="border rounded-3 p-3 bg-light-subtle h-100">
+          <h3 class="h6">Dodaj wydarzenie</h3>
+          <form method="post" action="{{ url_for('admin_create_plan_event_route') }}" class="row g-2 mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-12">
+              <label class="form-label">Tytuł *</label>
+              <input name="title" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Podtytuł / godzina</label>
+              <input name="subtitle" class="form-control form-control-sm" placeholder="np. 15:00, Kościół">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Opis</label>
+              <textarea name="description" rows="2" class="form-control form-control-sm" placeholder="np. Ceremonia i życzenia"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Kolejność</label>
+              <input type="number" name="sort_order" class="form-control form-control-sm" value="0">
+              <div class="form-text">Niższa liczba = wcześniej.</div>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-accent btn-sm w-100">Dodaj</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">Istniejące wydarzenia</h3>
+          <span class="badge text-bg-secondary">{{ plan_events|length }} wpisów</span>
+        </div>
+        {% if plan_events %}
+          <div class="d-flex flex-column gap-3">
+            {% for event in plan_events %}
+              <div class="border rounded-3 p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <strong>{{ event.title }}</strong>
+                  <span class="badge text-bg-light">kolejność {{ event.sort_order }}</span>
+                </div>
+                <form method="post" action="{{ url_for('admin_update_plan_event_route', event_id=event.id) }}" class="row g-2">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="col-md-6">
+                    <label class="form-label">Tytuł *</label>
+                    <input name="title" class="form-control form-control-sm" value="{{ event.title }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Podtytuł / godzina</label>
+                    <input name="subtitle" class="form-control form-control-sm" value="{{ event.subtitle or '' }}">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Opis</label>
+                    <textarea name="description" rows="2" class="form-control form-control-sm">{{ event.description or '' }}</textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Kolejność</label>
+                    <input type="number" name="sort_order" class="form-control form-control-sm" value="{{ event.sort_order }}">
+                  </div>
+                  <div class="col-12 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm">Zapisz zmiany</button>
+                  </div>
+                </form>
+                <form class="mt-2" method="post" action="{{ url_for('admin_delete_plan_event_route', event_id=event.id) }}" onsubmit="return confirm('Usunąć to wydarzenie?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-danger btn-sm">Usuń</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-info">Brak wydarzeń w planie. Dodaj pierwsze obok.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
 
   <section class="glass-card mt-4 animate-in">
     <div class="d-flex align-items-center gap-2 mb-3">
@@ -138,6 +217,10 @@
         <label class="form-label">Info (3) / Kontakt</label>
         <input name="info_pill_three" class="form-control" value="{{ invite_copy.info_pill_three }}" placeholder="np. Masz pytanie?">
       </div>
+      <div class="col-md-4">
+        <label class="form-label">Info (4) / Telefon</label>
+        <input name="info_pill_phone" class="form-control" value="{{ invite_copy.info_pill_phone }}" placeholder="np. Zadzwoń: +48 ...">
+      </div>
       <div class="col-md-6">
         <label class="form-label">Tytuł sekcji planu</label>
         <input name="plan_title" class="form-control" value="{{ invite_copy.plan_title }}" placeholder="np. Plan dnia">
@@ -145,6 +228,118 @@
       <div class="col-md-6">
         <label class="form-label">Notka pod formularzem</label>
         <textarea name="form_note" class="form-control" rows="2" placeholder="np. Po wysłaniu...">{{ invite_copy.form_note }}</textarea>
+      </div>
+
+      <div class="col-12">
+        <div class="form-divider">Tożsamość strony i nagłówki</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Tytuł zakładki (przeglądarka)</label>
+        <input name="site_browser_title" class="form-control" value="{{ invite_copy.site_browser_title }}" placeholder="np. Ślub Ani i Kamila">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Tytuł strony RSVP</label>
+        <input name="invite_page_title" class="form-control" value="{{ invite_copy.invite_page_title }}" placeholder="np. Zaproszenie — RSVP">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Tekst w nagłówku strony</label>
+        <input name="site_nav_title" class="form-control" value="{{ invite_copy.site_nav_title }}" placeholder="np. Nasze zaproszenie">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tekst w stopce</label>
+        <input name="site_footer_text" class="form-control" value="{{ invite_copy.site_footer_text }}" placeholder="np. Zaproszenie ślubne">
+      </div>
+
+      <div class="col-12">
+        <div class="form-divider">Teksty sekcji RSVP</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Etykieta nad sekcją</label>
+        <input name="rsvp_section_eyebrow" class="form-control" value="{{ invite_copy.rsvp_section_eyebrow }}" placeholder="np. RSVP">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tytuł sekcji</label>
+        <input name="rsvp_section_title" class="form-control" value="{{ invite_copy.rsvp_section_title }}" placeholder="np. Formularz potwierdzenia">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Pytanie o obecność</label>
+        <input name="rsvp_presence_label" class="form-control" value="{{ invite_copy.rsvp_presence_label }}" placeholder="np. Czy będziesz z nami?">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Odpowiedź TAK</label>
+        <input name="rsvp_presence_yes" class="form-control" value="{{ invite_copy.rsvp_presence_yes }}" placeholder="np. Tak, będę">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Odpowiedź NIE</label>
+        <input name="rsvp_presence_no" class="form-control" value="{{ invite_copy.rsvp_presence_no }}" placeholder="np. Niestety nie">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Nagłówek sekcji gościa</label>
+        <input name="rsvp_guest_divider" class="form-control" value="{{ invite_copy.rsvp_guest_divider }}" placeholder="np. Osoba towarzysząca">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Pytanie dla wyboru gościa</label>
+        <input name="rsvp_guest_select_label" class="form-control" value="{{ invite_copy.rsvp_guest_select_label }}" placeholder="np. Osoba towarzysząca?">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Opcja TAK</label>
+        <input name="rsvp_guest_select_yes" class="form-control" value="{{ invite_copy.rsvp_guest_select_yes }}" placeholder="np. Tak">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Opcja NIE</label>
+        <input name="rsvp_guest_select_no" class="form-control" value="{{ invite_copy.rsvp_guest_select_no }}" placeholder="np. Nie">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Pytanie o konkretnego gościa</label>
+        <textarea name="rsvp_guest_named_question" class="form-control" rows="2" placeholder="np. Czy {guest_name} będzie obecny/a?">{{ invite_copy.rsvp_guest_named_question }}</textarea>
+        <div class="form-text">Użyj {guest_name}, aby wstawić imię osoby towarzyszącej.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Przycisk TAK (gość)</label>
+        <input name="rsvp_guest_named_yes" class="form-control" value="{{ invite_copy.rsvp_guest_named_yes }}" placeholder="np. Tak, {guest_name}">
+        <div class="form-text">Obsługuje {guest_name}.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Przycisk NIE (gość)</label>
+        <input name="rsvp_guest_named_no" class="form-control" value="{{ invite_copy.rsvp_guest_named_no }}" placeholder="np. Nie, {guest_name} nie będzie">
+        <div class="form-text">Obsługuje {guest_name}.</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Komunikat przy braku osoby towarzyszącej</label>
+        <textarea name="rsvp_guest_not_allowed" class="form-control" rows="2">{{ invite_copy.rsvp_guest_not_allowed }}</textarea>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Etykieta diety gościa</label>
+        <input name="rsvp_guest_veg_label" class="form-control" value="{{ invite_copy.rsvp_guest_veg_label }}" placeholder="np. Dieta wegetariańska (gość)">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Etykieta Twojej diety</label>
+        <input name="rsvp_self_veg_label" class="form-control" value="{{ invite_copy.rsvp_self_veg_label }}" placeholder="np. Dieta wegetariańska (Ty)">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Nagłówek sekcji dzieci</label>
+        <input name="rsvp_children_divider" class="form-control" value="{{ invite_copy.rsvp_children_divider }}" placeholder="np. Dzieci">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Pytanie o dzieci</label>
+        <input name="rsvp_children_question" class="form-control" value="{{ invite_copy.rsvp_children_question }}" placeholder="np. Czy przyprowadzasz dzieci?">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Etykieta liczby dzieci</label>
+        <input name="rsvp_children_count_label" class="form-control" value="{{ invite_copy.rsvp_children_count_label }}" placeholder="np. Liczba dzieci (max {max_children})">
+        <div class="form-text">Użyj {max_children}, by wstawić limit.</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Etykieta dzieci na diecie</label>
+        <input name="rsvp_children_veg_label" class="form-control" value="{{ invite_copy.rsvp_children_veg_label }}" placeholder="np. Dzieci na diecie wege">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Komunikat, gdy dzieci nie są zaproszone</label>
+        <textarea name="rsvp_children_not_allowed" class="form-control" rows="2">{{ invite_copy.rsvp_children_not_allowed }}</textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Tekst przycisku wysyłki</label>
+        <input name="rsvp_submit_button" class="form-control" value="{{ invite_copy.rsvp_submit_button }}" placeholder="np. Wyślij RSVP">
       </div>
       <div class="col-12">
         <button class="btn btn-accent">Zapisz treści</button>
@@ -361,5 +556,64 @@
       </table>
     </div>
   </section>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const switchEl = document.getElementById('sameLocationSwitch');
+      const form = document.getElementById('locationsForm');
+      if(!switchEl || !form){
+        return;
+      }
+
+      const labelConfig = {
+        'ceremony-address': {
+          normal: 'Adres ceremonii',
+          combined: 'Adres ceremonii i przyjęcia'
+        },
+        'ceremony-label': {
+          normal: 'Etykieta ceremonii',
+          combined: 'Etykieta ceremonii i przyjęcia'
+        },
+        'ceremony-map': {
+          normal: 'Mapa Google (ceremonia)',
+          combined: 'Mapa Google (ceremonia i przyjęcie)'
+        }
+      };
+
+      const labels = Object.entries(labelConfig).reduce((acc, [key]) => {
+        const el = form.querySelector('[data-loc-label="' + key + '"]');
+        if(el){ acc[key] = el; }
+        return acc;
+      }, {});
+
+      const receptionRows = form.querySelectorAll('[data-location-section="reception"]');
+      const helpText = document.getElementById('sameLocationHelp');
+
+      function updateLocationFields(){
+        const same = switchEl.checked;
+        receptionRows.forEach(row => {
+          row.style.display = same ? 'none' : '';
+        });
+
+        Object.entries(labels).forEach(([key, el]) => {
+          const cfg = labelConfig[key];
+          if(!cfg){ return; }
+          el.textContent = same ? cfg.combined : cfg.normal;
+        });
+
+        if(helpText){
+          helpText.textContent = same
+            ? 'Na stronie pokażemy jeden wpis i wykorzystamy dane powyżej dla obu lokalizacji.'
+            : 'Na stronie zaproszenia pokażemy osobno ceremonię i przyjęcie.';
+        }
+      }
+
+      switchEl.addEventListener('change', updateLocationFields);
+      updateLocationFields();
+    });
+  </script>
 {% endblock %}
 

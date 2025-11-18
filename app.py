@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 from datetime import datetime, timedelta
 from functools import wraps
@@ -10,9 +11,10 @@ import sqlite3
 from dotenv import load_dotenv, find_dotenv
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, Response, abort, has_request_context
+    session, flash, Response, abort, has_request_context, g, send_from_directory
 )
 from flask_wtf import CSRFProtect
+from markupsafe import Markup, escape
 
 # -----------------------
 # Load configuration
@@ -47,6 +49,122 @@ app.config.update(
 )
 app.permanent_session_lifetime = timedelta(minutes=SESSION_LIFETIME_MINUTES)
 csrf = CSRFProtect(app)
+
+EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+PHONE_DIGIT_PATTERN = re.compile(r"[0-9]")
+PHONE_SUBSTRING_PATTERN = re.compile(r"\+?\d[\d\s().-]{3,}\d")
+
+
+@app.template_filter("linkify_email")
+def linkify_email(value: str | None):
+    """Convert email-like text fragments into safe mailto links."""
+    if not value:
+        return ""
+
+    text = str(value)
+    parts: list[Markup] = []
+    last = 0
+
+    for match in EMAIL_PATTERN.finditer(text):
+        start, end = match.span()
+        if start > last:
+            parts.append(Markup(escape(text[last:start])))
+        email = match.group(0)
+        safe_email = escape(email)
+        link = Markup(f'<a href="mailto:{safe_email}" class="text-decoration-none">{safe_email}</a>')
+        parts.append(link)
+        last = end
+
+    if last < len(text):
+        parts.append(Markup(escape(text[last:])))
+
+    if not parts:
+        return escape(text)
+
+    return Markup('').join(parts)
+
+
+@app.template_filter("tel_link")
+def tel_link(value: str | None):
+    if not value:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    if not PHONE_DIGIT_PATTERN.search(text):
+        return escape(text)
+
+    selected_span: tuple[int, int] | None = None
+    selected_text = ""
+    for match in PHONE_SUBSTRING_PATTERN.finditer(text):
+        candidate = match.group(0)
+        digit_count = len(re.sub(r"\D", "", candidate))
+        if digit_count >= 5:
+            selected_span = match.span()
+            selected_text = candidate
+            break
+
+    if not selected_span:
+        selected_span = (0, len(text))
+        selected_text = text
+
+    digits = re.sub(r"[^0-9+]", "", selected_text)
+    plain_digits = re.sub(r"\D", "", digits)
+    if len(plain_digits) < 5:
+        return escape(text)
+
+    href = digits if digits.startswith('+') else plain_digits
+    safe_href = escape(href)
+    safe_number = escape(selected_text.strip() if selected_text.strip() else selected_text)
+    link_markup = Markup(f'<a href="tel:{safe_href}" class="text-decoration-none">{safe_number}</a>')
+
+    start, end = selected_span
+    if start == 0 and end == len(text):
+        return link_markup
+
+    prefix = escape(text[:start]) if start > 0 else Markup("")
+    suffix = escape(text[end:]) if end < len(text) else Markup("")
+    return Markup("").join([prefix, link_markup, suffix])
+
+
+@app.template_filter("copy_format")
+def copy_format(value: str | None, **replacements):
+    if not value:
+        return ""
+    text = str(value)
+    result: list[Markup] = []
+    idx = 0
+    length = len(text)
+
+    while idx < length:
+        start = text.find('{', idx)
+        if start == -1:
+            result.append(Markup(escape(text[idx:])))
+            break
+
+        if start > idx:
+            result.append(Markup(escape(text[idx:start])))
+
+        end = text.find('}', start + 1)
+        if end == -1:
+            result.append(Markup(escape(text[start:])))
+            idx = length
+            break
+
+        key = text[start + 1:end].strip()
+        if key and key in replacements:
+            replacement = replacements.get(key)
+            if replacement is None:
+                replacement = ""
+            result.append(Markup(escape(replacement)))
+        else:
+            result.append(Markup(escape(text[start:end + 1])))
+        idx = end + 1
+
+    if not result:
+        return escape(text)
+
+    return Markup('').join(result)
 
 
 def verify_secret(user_input: str, plain_secret: str, hashed_secret: str | None = None) -> bool:
@@ -147,6 +265,18 @@ def init_db():
     if "guest_name" not in invitation_cols:
         c.execute("ALTER TABLE invitations ADD COLUMN guest_name TEXT;")
 
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS plan_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            subtitle TEXT,
+            description TEXT,
+            sort_order INTEGER DEFAULT 0
+        );
+        """
+    )
+
     conn.commit()
     conn.close()
 
@@ -178,15 +308,64 @@ INVITE_COPY_DEFAULTS = {
     "info_pill_one": "Termin ustalisz w panelu",
     "info_pill_two": "Dress code: elegancki luz",
     "info_pill_three": "Masz pytanie? Napisz do nas",
+    "info_pill_phone": "Zadzwoń: +48 000 000 000",
     "plan_title": "Plan dnia",
     "form_note": "Po wysłaniu zobaczysz potwierdzenie. Jeśli coś się zmieni, odezwij się do nas w każdej chwili.",
+    "invite_page_title": "Zaproszenie — RSVP",
+    "site_browser_title": "Wedding App",
+    "site_nav_title": "Nasze zaproszenie",
+    "site_footer_text": "Zaproszenie ślubne",
+    "rsvp_section_eyebrow": "RSVP",
+    "rsvp_section_title": "Formularz potwierdzenia",
+    "rsvp_presence_label": "Czy będziesz z nami?",
+    "rsvp_presence_yes": "Tak, będę",
+    "rsvp_presence_no": "Niestety nie",
+    "rsvp_guest_divider": "Osoba towarzysząca",
+    "rsvp_guest_named_question": "Czy {guest_name} będzie obecny/a?",
+    "rsvp_guest_named_yes": "Tak, {guest_name}",
+    "rsvp_guest_named_no": "Nie, {guest_name} nie będzie",
+    "rsvp_guest_select_label": "Osoba towarzysząca?",
+    "rsvp_guest_select_yes": "Tak",
+    "rsvp_guest_select_no": "Nie",
+    "rsvp_guest_not_allowed": "To zaproszenie nie obejmuje osoby towarzyszącej.",
+    "rsvp_guest_veg_label": "Dieta wegetariańska (gość)",
+    "rsvp_self_veg_label": "Dieta wegetariańska (Ty)",
+    "rsvp_children_divider": "Dzieci",
+    "rsvp_children_question": "Czy przyprowadzasz dzieci?",
+    "rsvp_children_count_label": "Liczba dzieci (max {max_children})",
+    "rsvp_children_veg_label": "Dzieci na diecie wege",
+    "rsvp_children_not_allowed": "Dzieci nie są zapisane na to zaproszenie.",
+    "rsvp_submit_button": "Wyślij RSVP",
 }
 
 
 def get_invite_copy():
+    if has_request_context():
+        cached = getattr(g, "_invite_copy", None)
+        if cached is not None:
+            return cached
+
+    rows = {}
+    conn = None
+    try:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT key, value FROM settings")
+        rows = {row[0]: row[1] for row in c.fetchall()}
+    except sqlite3.Error:
+        rows = {}
+    finally:
+        if conn:
+            conn.close()
+
     data = {}
     for key, default in INVITE_COPY_DEFAULTS.items():
-        data[key] = get_setting(key, default) or default
+        raw = rows.get(key)
+        data[key] = raw if raw else default
+
+    if has_request_context():
+        setattr(g, "_invite_copy", data)
+
     return data
 
 
@@ -224,6 +403,49 @@ def list_invitations():
     rows = c.fetchall()
     conn.close()
     return rows
+
+
+def list_plan_events():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM plan_events ORDER BY sort_order ASC, id ASC")
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+
+def create_plan_event(title, subtitle, description, sort_order):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO plan_events (title, subtitle, description, sort_order) VALUES (?, ?, ?, ?)",
+        (title, subtitle, description, sort_order)
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_plan_event(event_id, title, subtitle, description, sort_order):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        """
+        UPDATE plan_events
+        SET title = ?, subtitle = ?, description = ?, sort_order = ?
+        WHERE id = ?
+        """,
+        (title, subtitle, description, sort_order, event_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_plan_event(event_id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("DELETE FROM plan_events WHERE id = ?", (event_id,))
+    conn.commit()
+    conn.close()
 
 
 def _parse_acl_entries(raw: str | None) -> list[str]:
@@ -291,7 +513,17 @@ def inject_admin_access_flag():
             allowed = admin_ip_allowed()
         except Exception:
             allowed = True
-    return {"admin_access_allowed": allowed}
+    try:
+        copy_data = get_invite_copy()
+    except Exception:
+        copy_data = INVITE_COPY_DEFAULTS.copy()
+    return {"admin_access_allowed": allowed, "global_copy": copy_data}
+
+
+@app.route('/favicon.ico')
+def favicon():
+    icon_path = os.path.join(app.root_path, 'static', 'images')
+    return send_from_directory(icon_path, 'background.png', mimetype='image/png')
 
 # -----------------------
 # Routes: wejście / logout
@@ -403,6 +635,7 @@ def invite():
         prefill["children_veg_count"] = min(prefill.get("children_veg_count", 0) or 0, prefill["children_count"])
 
     invite_copy = get_invite_copy()
+    plan_events = list_plan_events()
 
     return render_template(
         "invite.html",
@@ -416,6 +649,7 @@ def invite():
         reception_label=reception_label,
         same_location=same_location,
         invite_copy=invite_copy,
+        plan_events=plan_events,
         invitation=invitation,
         existing_rsvp=existing_rsvp,
         prefill=prefill,
@@ -580,6 +814,7 @@ def admin_panel():
     total_children = 0
     total_vegetarian = 0
     total_vegetarian_children = 0
+    total_adults = 0
     for r in raw_rows:
         # r: id, first_name, last_name, guest, vegetarian_self, vegetarian_guest, children_flag, children_count, children_veg_count, created
         attending_flag = (r["attending"] or 'tak').lower()
@@ -602,6 +837,7 @@ def admin_panel():
         total_children += kids
         total_vegetarian += veg_total
         total_vegetarian_children += veg_children
+        total_adults += (primary_present + plus_guest)
         rows.append({
             "id": r["id"],
             "first_name": r["first_name"],
@@ -627,6 +863,7 @@ def admin_panel():
         "total_children": total_children,
         "total_vegetarian": total_vegetarian,
         "total_vegetarian_children": total_vegetarian_children,
+        "total_adults": total_adults,
         "total_normal": total_guests - total_vegetarian,
     }
     # also fetch editable locations
@@ -639,6 +876,7 @@ def admin_panel():
     same_location = (get_setting('same_location_flag', 'false') or 'false').lower() == 'true'
     invite_copy = get_invite_copy()
     invitations = list_invitations()
+    plan_events = list_plan_events()
     admin_acl_text = get_setting('admin_acl', '') or ''
     current_admin_ip = get_client_ip()
 
@@ -655,6 +893,7 @@ def admin_panel():
         same_location=same_location,
         invite_copy=invite_copy,
         invitations=invitations,
+        plan_events=plan_events,
         admin_acl_text=admin_acl_text,
         current_admin_ip=current_admin_ip,
     )
@@ -793,6 +1032,44 @@ def admin_delete_invitation(invitation_id):
     flash('Zaproszenie zostało usunięte.')
     return redirect(url_for('admin_panel'))
 
+@app.route('/admin/plan-events/create', methods=['POST'])
+@admin_required
+def admin_create_plan_event_route():
+    title = (request.form.get('title') or '').strip()
+    subtitle = (request.form.get('subtitle') or '').strip()
+    description = (request.form.get('description') or '').strip()
+    sort_order = _parse_int(request.form.get('sort_order'), 0)
+
+    if not title:
+        flash('Tytuł wydarzenia jest wymagany.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    create_plan_event(title, subtitle, description, sort_order)
+    flash('Wydarzenie dodane do planu dnia.')
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/plan-events/<int:event_id>/update', methods=['POST'])
+@admin_required
+def admin_update_plan_event_route(event_id):
+    title = (request.form.get('title') or '').strip()
+    subtitle = (request.form.get('subtitle') or '').strip()
+    description = (request.form.get('description') or '').strip()
+    sort_order = _parse_int(request.form.get('sort_order'), 0)
+
+    if not title:
+        flash('Tytuł wydarzenia jest wymagany.', 'error')
+        return redirect(url_for('admin_panel'))
+
+    update_plan_event(event_id, title, subtitle, description, sort_order)
+    flash('Wydarzenie zaktualizowane.')
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/plan-events/<int:event_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_plan_event_route(event_id):
+    delete_plan_event(event_id)
+    flash('Wydarzenie usunięte z planu dnia.')
+    return redirect(url_for('admin_panel'))
 # -----------------------
 # Eksport CSV
 # -----------------------

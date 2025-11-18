@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Zaproszenie — RSVP{% endblock %}
+{% set copy = invite_copy or global_copy or {} %}
+{% block title %}{{ copy.invite_page_title or copy.site_browser_title or 'Zaproszenie — RSVP' }}{% endblock %}
 
 {% block content %}
 	{% set ceremony_label = wedding_label or 'Ceremonia' %}
 	{% set party_label = reception_label or 'Przyjęcie' %}
 	{% set combined_label = wedding_label or party_label or 'Ceremonia i przyjęcie' %}
-	{% set copy = invite_copy or {} %}
 	{% set has_named_guest = invitation.allow_guest and invitation.guest_name %}
 	<div class="row g-4 align-items-stretch">
 		<div class="col-xl-5">
@@ -25,32 +25,54 @@
 					</div>
 					<div class="info-pill">
 						<i class="bi bi-chat-dots"></i>
-						<span>{{ copy.info_pill_three }}</span>
+						<span>{{ (copy.info_pill_three or '') | linkify_email }}</span>
 					</div>
+					{% if copy.info_pill_phone %}
+						<div class="info-pill">
+							<i class="bi bi-telephone"></i>
+							<span>{{ copy.info_pill_phone | tel_link }}</span>
+						</div>
+					{% endif %}
 				</div>
 
 				<div class="mt-4">
 					<p class="fw-semibold mb-2">{{ copy.plan_title }}</p>
-					<ul class="timeline">
-						{% if same_location %}
-							<li>
-								<strong>{{ combined_label }}</strong>
-								<div class="text-muted small">
-									{{ wedding_loc or reception_loc or 'Dodaj adres w panelu administratora' }}
-								</div>
-								<div class="small text-success">Ślub i przyjęcie w tym samym miejscu.</div>
-							</li>
-						{% else %}
-							<li>
-								<strong>{{ ceremony_label }}</strong>
-								<div class="text-muted small">{{ wedding_loc or 'Dodaj adres w panelu administratora' }}</div>
-							</li>
-							<li>
-								<strong>{{ party_label }}</strong>
-								<div class="text-muted small">{{ reception_loc or 'Dodaj adres w panelu administratora' }}</div>
-							</li>
-						{% endif %}
-					</ul>
+					{% if plan_events %}
+						<ul class="timeline">
+							{% for event in plan_events %}
+								<li>
+									<strong>{{ event.title }}</strong>
+									{% if event.subtitle %}
+										<div class="text-muted small">{{ event.subtitle }}</div>
+									{% endif %}
+									{% if event.description %}
+										<div class="small">{{ event.description }}</div>
+									{% endif %}
+								</li>
+							{% endfor %}
+						</ul>
+					{% else %}
+						<ul class="timeline">
+							{% if same_location %}
+								<li>
+									<strong>{{ combined_label }}</strong>
+									<div class="text-muted small">
+										{{ wedding_loc or reception_loc or 'Dodaj adres w panelu administratora' }}
+									</div>
+									<div class="small text-success">Ślub i przyjęcie w tym samym miejscu.</div>
+								</li>
+							{% else %}
+								<li>
+									<strong>{{ ceremony_label }}</strong>
+									<div class="text-muted small">{{ wedding_loc or 'Dodaj adres w panelu administratora' }}</div>
+								</li>
+								<li>
+									<strong>{{ party_label }}</strong>
+									<div class="text-muted small">{{ reception_loc or 'Dodaj adres w panelu administratora' }}</div>
+								</li>
+							{% endif %}
+						</ul>
+					{% endif %}
 				</div>
 
 				{% if wedding_map or reception_map or same_location %}
@@ -96,8 +118,8 @@
 			<section class="glass-card animate-in h-100">
 				<div class="d-flex justify-content-between align-items-center mb-3">
 					<div>
-						<p class="eyebrow mb-1">RSVP</p>
-						<h2 class="h4 mb-0">Formularz potwierdzenia</h2>
+						<p class="eyebrow mb-1">{{ copy.rsvp_section_eyebrow }}</p>
+						<h2 class="h4 mb-0">{{ copy.rsvp_section_title }}</h2>
 					</div>
 					<span class="status-chip"><i class="bi bi-shield-check"></i> chronimy dane</span>
 				</div>
@@ -127,46 +149,46 @@
 					</div>
 
 					<div class="col-12">
-						<label class="form-label">Czy będziesz z nami?</label>
+						<label class="form-label">{{ copy.rsvp_presence_label }}</label>
 						<div class="btn-group w-100" role="group">
 							<input type="radio" class="btn-check" name="attendance" id="attendYes" value="tak" {% if prefill.attendance != 'nie' %}checked{% endif %}>
-							<label class="btn btn-outline-secondary" for="attendYes">Tak, będę</label>
+							<label class="btn btn-outline-secondary" for="attendYes">{{ copy.rsvp_presence_yes }}</label>
 							<input type="radio" class="btn-check" name="attendance" id="attendNo" value="nie" {% if prefill.attendance == 'nie' %}checked{% endif %}>
-							<label class="btn btn-outline-secondary" for="attendNo">Niestety nie</label>
+							<label class="btn btn-outline-secondary" for="attendNo">{{ copy.rsvp_presence_no }}</label>
 						</div>
 					</div>
 
 					<div id="guestBlock" class="col-12">
-						<div class="form-divider">Osoba towarzysząca</div>
+						<div class="form-divider">{{ copy.rsvp_guest_divider }}</div>
 						<div class="row g-3">
 							{% if invitation.allow_guest %}
 								{% if has_named_guest %}
 									<div class="col-12">
-										<label class="form-label">Czy <strong>{{ invitation.guest_name }}</strong> będzie obecny/a?</label>
+									<label class="form-label">{{ copy.rsvp_guest_named_question | copy_format(guest_name=invitation.guest_name) }}</label>
 										<div class="btn-group w-100" role="group">
 											<input type="radio" class="btn-check" name="guest" id="guestNamedYes" value="tak" {% if prefill.guest == 'tak' %}checked{% endif %}>
-											<label class="btn btn-outline-secondary" for="guestNamedYes">Tak, {{ invitation.guest_name }}</label>
+										<label class="btn btn-outline-secondary" for="guestNamedYes">{{ copy.rsvp_guest_named_yes | copy_format(guest_name=invitation.guest_name) }}</label>
 											<input type="radio" class="btn-check" name="guest" id="guestNamedNo" value="nie" {% if prefill.guest != 'tak' %}checked{% endif %}>
-											<label class="btn btn-outline-secondary" for="guestNamedNo">Nie, {{ invitation.guest_name }} nie będzie</label>
+										<label class="btn btn-outline-secondary" for="guestNamedNo">{{ copy.rsvp_guest_named_no | copy_format(guest_name=invitation.guest_name) }}</label>
 										</div>
 									</div>
 								{% else %}
 									<div class="col-md-6">
-										<label class="form-label">Osoba towarzysząca?</label>
+									<label class="form-label">{{ copy.rsvp_guest_select_label }}</label>
 										<select name="guest" class="form-select" id="guestSelect">
-											<option value="tak" {% if prefill.guest == 'tak' %}selected{% endif %}>Tak</option>
-											<option value="nie" {% if prefill.guest != 'tak' %}selected{% endif %}>Nie</option>
+										<option value="tak" {% if prefill.guest == 'tak' %}selected{% endif %}>{{ copy.rsvp_guest_select_yes }}</option>
+										<option value="nie" {% if prefill.guest != 'tak' %}selected{% endif %}>{{ copy.rsvp_guest_select_no }}</option>
 										</select>
 									</div>
 								{% endif %}
 							{% else %}
 								<input type="hidden" name="guest" value="nie">
 								<div class="col-12">
-									<div class="alert alert-light border">To zaproszenie nie obejmuje osoby towarzyszącej.</div>
+								<div class="alert alert-light border">{{ copy.rsvp_guest_not_allowed }}</div>
 								</div>
 							{% endif %}
 							<div class="col-md-6" id="guestVegWrap" style="display:none;">
-								<label class="form-label">Dieta wegetariańska (gość)</label>
+								<label class="form-label">{{ copy.rsvp_guest_veg_label }}</label>
 								<select name="vegetarian_guest" id="vegetarianGuest" class="form-select">
 									<option value="nie" {% if prefill.vegetarian_guest != 'tak' %}selected{% endif %}>Nie</option>
 									<option value="tak" {% if prefill.vegetarian_guest == 'tak' %}selected{% endif %}>Tak</option>
@@ -176,7 +198,7 @@
 					</div>
 
 					<div class="col-md-6" id="vegSelfWrap">
-						<label class="form-label">Dieta wegetariańska (Ty)</label>
+						<label class="form-label">{{ copy.rsvp_self_veg_label }}</label>
 						<select name="vegetarian" id="vegetarianSelf" class="form-select">
 							<option value="nie" {% if prefill.vegetarian != 'tak' %}selected{% endif %}>Nie</option>
 							<option value="tak" {% if prefill.vegetarian == 'tak' %}selected{% endif %}>Tak</option>
@@ -184,22 +206,22 @@
 					</div>
 
 					<div id="childrenBlock" class="col-12">
-						<div class="form-divider">Dzieci</div>
+						<div class="form-divider">{{ copy.rsvp_children_divider }}</div>
 						<div class="row g-3">
 						{% if invitation.max_children > 0 %}
 							<div class="col-md-6">
-								<label class="form-label">Czy przyprowadzasz dzieci?</label>
+								<label class="form-label">{{ copy.rsvp_children_question }}</label>
 								<select name="children" id="childrenSelect" class="form-select">
 									<option value="tak" {% if prefill.children == 'tak' %}selected{% endif %}>Tak</option>
 									<option value="nie" {% if prefill.children != 'tak' %}selected{% endif %}>Nie</option>
 								</select>
 							</div>
 							<div class="col-md-6" id="childrenCountWrap" style="display:none;">
-								<label class="form-label">Liczba dzieci (max {{ invitation.max_children }})</label>
+								<label class="form-label">{{ copy.rsvp_children_count_label | copy_format(max_children=invitation.max_children) }}</label>
 								<input type="number" id="childrenCount" name="children_count" min="0" max="{{ invitation.max_children }}" value="{{ prefill.children_count | default(0, true) }}" class="form-control">
 							</div>
 							<div class="col-md-6" id="childrenVegWrap" style="display:none;">
-								<label class="form-label">Dzieci na diecie wege</label>
+								<label class="form-label">{{ copy.rsvp_children_veg_label }}</label>
 								<input type="number" id="childrenVegCount" name="children_veg_count" min="0" value="{{ prefill.children_veg_count | default(0, true) }}" class="form-control">
 							</div>
 						{% else %}
@@ -207,7 +229,7 @@
 							<input type="hidden" name="children_count" value="0">
 							<input type="hidden" name="children_veg_count" value="0">
 							<div class="col-12">
-								<div class="alert alert-light border">Dzieci nie są zapisane na to zaproszenie.</div>
+								<div class="alert alert-light border">{{ copy.rsvp_children_not_allowed }}</div>
 							</div>
 						{% endif %}
 						</div>
@@ -217,7 +239,7 @@
 						<div class="form-text text-muted">{{ copy.form_note }}</div>
 					</div>
 					<div class="col-12">
-						<button class="btn btn-accent btn-lg w-100">Wyślij RSVP</button>
+						<button class="btn btn-accent btn-lg w-100">{{ copy.rsvp_submit_button }}</button>
 					</div>
 				</form>
 			</section>
