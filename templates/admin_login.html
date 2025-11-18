@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Panel — logowanie{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center page-hero">
+    <div class="col-lg-4 animate-in">
+      <section class="glass-card">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-shield-lock-fill fs-4 text-danger"></i>
+          <div>
+            <p class="eyebrow mb-1">Panel administratora</p>
+            <h2 class="h4 mb-0">Zaloguj się</h2>
+          </div>
+        </div>
+        <p class="text-muted mb-4">Dostęp otrzymują tylko osoby upoważnione do zarządzania listą gości.</p>
+
+        {% if blocked_ip %}
+          <div class="alert alert-warning">
+            Dostęp z adresu <strong>{{ request.remote_addr }}</strong> jest zablokowany w liście ACL administratora.
+            Skontaktuj się z właścicielem panelu, aby dodać IP do listy dozwolonych.
+          </div>
+        {% else %}
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <div class="alert alert-danger">{{ messages[0] }}</div>
+            {% endif %}
+          {% endwith %}
+
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="form-label">Hasło administratora</label>
+            <input type="password" name="password" placeholder="Wpisz hasło" class="form-control form-control-lg mb-3" required>
+            <button class="btn btn-accent w-100">Wejdź do panelu</button>
+          </form>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock %}
+

@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+{% block title %}Zaproszenie — RSVP{% endblock %}
+
+{% block content %}
+	{% set ceremony_label = wedding_label or 'Ceremonia' %}
+	{% set party_label = reception_label or 'Przyjęcie' %}
+	{% set combined_label = wedding_label or party_label or 'Ceremonia i przyjęcie' %}
+	{% set copy = invite_copy or {} %}
+	{% set has_named_guest = invitation.allow_guest and invitation.guest_name %}
+	<div class="row g-4 align-items-stretch">
+		<div class="col-xl-5">
+			<section class="glass-card hero-card animate-in">
+				<p class="eyebrow">{{ copy.hero_eyebrow }}</p>
+				<h1 class="hero-title mb-3">{{ copy.hero_title }}</h1>
+				<p class="hero-lead mb-4">{{ copy.hero_lead }}</p>
+
+				<div class="info-grid">
+					<div class="info-pill">
+						<i class="bi bi-calendar-event"></i>
+						<span>{{ copy.info_pill_one }}</span>
+					</div>
+					<div class="info-pill">
+						<i class="bi bi-heart"></i>
+						<span>{{ copy.info_pill_two }}</span>
+					</div>
+					<div class="info-pill">
+						<i class="bi bi-chat-dots"></i>
+						<span>{{ copy.info_pill_three }}</span>
+					</div>
+				</div>
+
+				<div class="mt-4">
+					<p class="fw-semibold mb-2">{{ copy.plan_title }}</p>
+					<ul class="timeline">
+						{% if same_location %}
+							<li>
+								<strong>{{ combined_label }}</strong>
+								<div class="text-muted small">
+									{{ wedding_loc or reception_loc or 'Dodaj adres w panelu administratora' }}
+								</div>
+								<div class="small text-success">Ślub i przyjęcie w tym samym miejscu.</div>
+							</li>
+						{% else %}
+							<li>
+								<strong>{{ ceremony_label }}</strong>
+								<div class="text-muted small">{{ wedding_loc or 'Dodaj adres w panelu administratora' }}</div>
+							</li>
+							<li>
+								<strong>{{ party_label }}</strong>
+								<div class="text-muted small">{{ reception_loc or 'Dodaj adres w panelu administratora' }}</div>
+							</li>
+						{% endif %}
+					</ul>
+				</div>
+
+				{% if wedding_map or reception_map or same_location %}
+					<div class="row g-3 mt-3">
+						{% if same_location %}
+							<div class="col-md-6">
+								<div class="location-card h-100">
+									<h6>{{ combined_label }}</h6>
+									<p class="mb-2 small text-muted">{{ wedding_loc or reception_loc }}</p>
+									{% if wedding_map or reception_map %}
+										<a target="_blank" href="{{ wedding_map or reception_map }}" class="btn btn-outline-secondary btn-sm w-100">Mapa</a>
+									{% else %}
+										<span class="text-muted small">Mapę dodasz w panelu admina.</span>
+									{% endif %}
+								</div>
+							</div>
+						{% else %}
+							{% if wedding_map %}
+								<div class="col-md-6">
+									<div class="location-card h-100">
+										<h6>{{ ceremony_label }}</h6>
+										<p class="mb-2 small text-muted">{{ wedding_loc }}</p>
+										<a target="_blank" href="{{ wedding_map }}" class="btn btn-outline-secondary btn-sm w-100">Mapa</a>
+									</div>
+								</div>
+							{% endif %}
+							{% if reception_map %}
+								<div class="col-md-6">
+									<div class="location-card h-100">
+										<h6>{{ party_label }}</h6>
+										<p class="mb-2 small text-muted">{{ reception_loc }}</p>
+										<a target="_blank" href="{{ reception_map }}" class="btn btn-outline-secondary btn-sm w-100">Mapa</a>
+									</div>
+								</div>
+							{% endif %}
+						{% endif %}
+					</div>
+				{% endif %}
+			</section>
+		</div>
+
+		<div class="col-xl-7">
+			<section class="glass-card animate-in h-100">
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<div>
+						<p class="eyebrow mb-1">RSVP</p>
+						<h2 class="h4 mb-0">Formularz potwierdzenia</h2>
+					</div>
+					<span class="status-chip"><i class="bi bi-shield-check"></i> chronimy dane</span>
+				</div>
+				<div class="alert alert-info small">
+					To zaproszenie obejmuje <strong>{{ prefill.first_name }} {{ prefill.last_name }}</strong>
+					{% if has_named_guest %}+ osobę towarzyszącą <strong>{{ invitation.guest_name }}</strong>{% elif invitation.allow_guest %}+ osobę towarzyszącą{% endif %}
+					{% if invitation.max_children > 0 %}+ maksymalnie {{ invitation.max_children }} dzieci{% endif %}.
+					Możesz jedynie zmniejszyć te wartości lub potwierdzić brak obecności.
+				</div>
+
+				{% with messages = get_flashed_messages() %}
+					{% if messages %}
+						<div class="alert alert-danger">{{ messages[0] }}</div>
+					{% endif %}
+				{% endwith %}
+				<div id="formAlert"></div>
+
+				<form action="{{ url_for('rsvp') }}" method="post" class="row g-3 mt-2" data-named-guest="{{ 'true' if has_named_guest else 'false' }}">
+					<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+					<div class="col-md-6">
+						<label class="form-label">Imię</label>
+						<input class="form-control form-control-lg" name="first_name" id="firstName" value="{{ prefill.first_name | default('', true) }}" readonly>
+					</div>
+					<div class="col-md-6">
+						<label class="form-label">Nazwisko</label>
+						<input class="form-control form-control-lg" name="last_name" id="lastName" value="{{ prefill.last_name | default('', true) }}" readonly>
+					</div>
+
+					<div class="col-12">
+						<label class="form-label">Czy będziesz z nami?</label>
+						<div class="btn-group w-100" role="group">
+							<input type="radio" class="btn-check" name="attendance" id="attendYes" value="tak" {% if prefill.attendance != 'nie' %}checked{% endif %}>
+							<label class="btn btn-outline-secondary" for="attendYes">Tak, będę</label>
+							<input type="radio" class="btn-check" name="attendance" id="attendNo" value="nie" {% if prefill.attendance == 'nie' %}checked{% endif %}>
+							<label class="btn btn-outline-secondary" for="attendNo">Niestety nie</label>
+						</div>
+					</div>
+
+					<div id="guestBlock" class="col-12">
+						<div class="form-divider">Osoba towarzysząca</div>
+						<div class="row g-3">
+							{% if invitation.allow_guest %}
+								{% if has_named_guest %}
+									<div class="col-12">
+										<label class="form-label">Czy <strong>{{ invitation.guest_name }}</strong> będzie obecny/a?</label>
+										<div class="btn-group w-100" role="group">
+											<input type="radio" class="btn-check" name="guest" id="guestNamedYes" value="tak" {% if prefill.guest == 'tak' %}checked{% endif %}>
+											<label class="btn btn-outline-secondary" for="guestNamedYes">Tak, {{ invitation.guest_name }}</label>
+											<input type="radio" class="btn-check" name="guest" id="guestNamedNo" value="nie" {% if prefill.guest != 'tak' %}checked{% endif %}>
+											<label class="btn btn-outline-secondary" for="guestNamedNo">Nie, {{ invitation.guest_name }} nie będzie</label>
+										</div>
+									</div>
+								{% else %}
+									<div class="col-md-6">
+										<label class="form-label">Osoba towarzysząca?</label>
+										<select name="guest" class="form-select" id="guestSelect">
+											<option value="tak" {% if prefill.guest == 'tak' %}selected{% endif %}>Tak</option>
+											<option value="nie" {% if prefill.guest != 'tak' %}selected{% endif %}>Nie</option>
+										</select>
+									</div>
+								{% endif %}
+							{% else %}
+								<input type="hidden" name="guest" value="nie">
+								<div class="col-12">
+									<div class="alert alert-light border">To zaproszenie nie obejmuje osoby towarzyszącej.</div>
+								</div>
+							{% endif %}
+							<div class="col-md-6" id="guestVegWrap" style="display:none;">
+								<label class="form-label">Dieta wegetariańska (gość)</label>
+								<select name="vegetarian_guest" id="vegetarianGuest" class="form-select">
+									<option value="nie" {% if prefill.vegetarian_guest != 'tak' %}selected{% endif %}>Nie</option>
+									<option value="tak" {% if prefill.vegetarian_guest == 'tak' %}selected{% endif %}>Tak</option>
+								</select>
+							</div>
+						</div>
+					</div>
+
+					<div class="col-md-6" id="vegSelfWrap">
+						<label class="form-label">Dieta wegetariańska (Ty)</label>
+						<select name="vegetarian" id="vegetarianSelf" class="form-select">
+							<option value="nie" {% if prefill.vegetarian != 'tak' %}selected{% endif %}>Nie</option>
+							<option value="tak" {% if prefill.vegetarian == 'tak' %}selected{% endif %}>Tak</option>
+						</select>
+					</div>
+
+					<div id="childrenBlock" class="col-12">
+						<div class="form-divider">Dzieci</div>
+						<div class="row g-3">
+						{% if invitation.max_children > 0 %}
+							<div class="col-md-6">
+								<label class="form-label">Czy przyprowadzasz dzieci?</label>
+								<select name="children" id="childrenSelect" class="form-select">
+									<option value="tak" {% if prefill.children == 'tak' %}selected{% endif %}>Tak</option>
+									<option value="nie" {% if prefill.children != 'tak' %}selected{% endif %}>Nie</option>
+								</select>
+							</div>
+							<div class="col-md-6" id="childrenCountWrap" style="display:none;">
+								<label class="form-label">Liczba dzieci (max {{ invitation.max_children }})</label>
+								<input type="number" id="childrenCount" name="children_count" min="0" max="{{ invitation.max_children }}" value="{{ prefill.children_count | default(0, true) }}" class="form-control">
+							</div>
+							<div class="col-md-6" id="childrenVegWrap" style="display:none;">
+								<label class="form-label">Dzieci na diecie wege</label>
+								<input type="number" id="childrenVegCount" name="children_veg_count" min="0" value="{{ prefill.children_veg_count | default(0, true) }}" class="form-control">
+							</div>
+						{% else %}
+							<input type="hidden" name="children" value="nie">
+							<input type="hidden" name="children_count" value="0">
+							<input type="hidden" name="children_veg_count" value="0">
+							<div class="col-12">
+								<div class="alert alert-light border">Dzieci nie są zapisane na to zaproszenie.</div>
+							</div>
+						{% endif %}
+						</div>
+					</div>
+
+					<div class="col-12">
+						<div class="form-text text-muted">{{ copy.form_note }}</div>
+					</div>
+					<div class="col-12">
+						<button class="btn btn-accent btn-lg w-100">Wyślij RSVP</button>
+					</div>
+				</form>
+			</section>
+		</div>
+	</div>
+{% endblock %}
+
+{% block scripts %}
+	<script>
+		document.addEventListener('DOMContentLoaded', function(){
+			const form = document.querySelector('form');
+			const hasNamedGuest = form && form.dataset.namedGuest === 'true';
+			const sel = document.getElementById('childrenSelect');
+			const wrap = document.getElementById('childrenCountWrap');
+			const guestSelect = document.getElementById('guestSelect');
+			const guestRadios = document.querySelectorAll('input[name="guest"][type="radio"]');
+			const guestBlock = document.getElementById('guestBlock');
+			const childrenBlock = document.getElementById('childrenBlock');
+			const guestVegWrap = document.getElementById('guestVegWrap');
+			const vegSelfWrap = document.getElementById('vegSelfWrap');
+			const childrenVegWrap = document.getElementById('childrenVegWrap');
+			const childrenCount = document.getElementById('childrenCount');
+			const childrenVegCount = document.getElementById('childrenVegCount');
+			const vegetarianGuest = document.getElementById('vegetarianGuest');
+			const vegetarianSelf = document.getElementById('vegetarianSelf');
+			const formAlert = document.getElementById('formAlert');
+			const attendYes = document.getElementById('attendYes');
+			const attendNo = document.getElementById('attendNo');
+			const childrenLimit = childrenCount ? parseInt(childrenCount.getAttribute('max') || '0', 10) : 0;
+
+			const getGuestValue = () => {
+				if(guestRadios && guestRadios.length){
+					const checked = Array.from(guestRadios).find(r => r.checked);
+					return checked ? checked.value : 'nie';
+				}
+				return guestSelect ? guestSelect.value : 'nie';
+			};
+
+			const setGuestValue = (val) => {
+				if(guestRadios && guestRadios.length){
+					guestRadios.forEach(r => { r.checked = (r.value === val); });
+				} else if (guestSelect) {
+					guestSelect.value = val;
+				}
+			};
+
+			function update(){
+				const attending = attendNo && attendNo.checked ? 'nie' : 'tak';
+				const guestVal = getGuestValue();
+				const childrenAllowed = hasNamedGuest ? (attending === 'tak' || guestVal === 'tak') : attending === 'tak';
+				const hideGuestBlock = attending === 'nie' && !hasNamedGuest;
+				const everyoneDeclined = hasNamedGuest && attending === 'nie' && guestVal !== 'tak';
+				const hideFoodAndKids = hideGuestBlock || everyoneDeclined;
+				const hideSelfDiet = attending !== 'tak';
+
+				if(guestBlock){
+					guestBlock.style.display = hideGuestBlock ? 'none' : '';
+				}
+				if(hideGuestBlock){
+					setGuestValue('nie');
+					if(sel) sel.value = 'nie';
+				}
+
+				if(childrenBlock){
+					childrenBlock.style.display = hideFoodAndKids ? 'none' : '';
+				}
+
+				const showGuestVeg = !hideFoodAndKids && guestVal === 'tak' && (attending === 'tak' || hasNamedGuest);
+				if(guestVegWrap){
+					guestVegWrap.style.display = showGuestVeg ? '' : 'none';
+					if(!showGuestVeg && vegetarianGuest){
+						vegetarianGuest.value = 'nie';
+					}
+				}
+
+				if(vegSelfWrap){
+					vegSelfWrap.style.display = hideSelfDiet ? 'none' : '';
+					if(hideSelfDiet && vegetarianSelf){
+						vegetarianSelf.value = 'nie';
+					}
+				}
+
+				if(hideFoodAndKids){
+					if(childrenCount) childrenCount.value = 0;
+					if(childrenVegCount) childrenVegCount.value = 0;
+					if(sel) sel.value = 'nie';
+				}
+
+				if(sel && sel.value === 'tak' && childrenAllowed && !hideFoodAndKids) {
+					wrap && (wrap.style.display = '');
+					childrenVegWrap && (childrenVegWrap.style.display = '');
+					if(childrenCount && childrenLimit){
+						const currentVal = parseInt(childrenCount.value || '0', 10);
+						if(currentVal > childrenLimit){
+							childrenCount.value = childrenLimit;
+						}
+					}
+					if(childrenVegCount && childrenCount){
+						const maxVeg = parseInt(childrenCount.value || '0', 10);
+						const currentVeg = parseInt(childrenVegCount.value || '0', 10);
+						if(currentVeg > maxVeg){
+							childrenVegCount.value = maxVeg;
+						}
+					}
+				} else {
+					wrap && (wrap.style.display = 'none');
+					childrenVegWrap && (childrenVegWrap.style.display = 'none');
+					if(childrenCount) childrenCount.value = 0;
+					if(childrenVegCount) childrenVegCount.value = 0;
+				}
+			}
+
+			guestSelect && guestSelect.addEventListener('change', update);
+			guestRadios && guestRadios.forEach(r => r.addEventListener('change', update));
+			sel && sel.addEventListener('change', update);
+			attendYes && attendYes.addEventListener('change', update);
+			attendNo && attendNo.addEventListener('change', update);
+			update();
+
+			function syncChildrenMax(){
+				const c = parseInt(childrenCount.value || 0);
+				if(childrenVegCount){
+					childrenVegCount.max = c;
+					if(parseInt(childrenVegCount.value || 0) > c){
+						childrenVegCount.value = c;
+					}
+				}
+			}
+			childrenCount && childrenCount.addEventListener('input', syncChildrenMax);
+
+			form && form.addEventListener('submit', function(e){
+				const errors = [];
+				const attending = attendNo && attendNo.checked ? 'nie' : 'tak';
+				const guestVal = getGuestValue();
+				const childrenVal = sel ? sel.value : 'nie';
+				const childrenAllowed = hasNamedGuest ? (attending === 'tak' || guestVal === 'tak') : attending === 'tak';
+				const cCount = parseInt(childrenCount && childrenCount.value || 0);
+				const cVeg = parseInt((childrenVegCount && childrenVegCount.value) || 0);
+				const gVeg = vegetarianGuest ? vegetarianGuest.value : 'nie';
+
+				if(guestVal !== 'tak' && gVeg === 'tak'){
+					errors.push('Nie można ustawić diety dla osoby towarzyszącej bez zaznaczenia osoby towarzyszącej.');
+				}
+				if(childrenVal === 'tak' && childrenAllowed && cCount <= 0){
+					errors.push('Jeśli przyprowadzasz dzieci, podaj liczbę większą niż 0.');
+				}
+				if(childrenLimit && cCount > childrenLimit){
+					errors.push(`Maksymalna liczba dzieci dla tego zaproszenia to ${childrenLimit}.`);
+				}
+				if(childrenVal !== 'tak' && cCount > 0){
+					errors.push("Zaznaczono liczbę dzieci, ale pole 'Czy przyprowadzasz dzieci?' jest ustawione na 'Nie'.");
+				}
+				if(cVeg > cCount){ errors.push('Liczba dzieci na diecie wegetariańskiej nie może być większa niż liczba dzieci.'); }
+
+				if(errors.length){
+					e.preventDefault();
+					formAlert.innerHTML = '<div class="alert alert-danger"><ul>' + errors.map(function(r){ return '<li>'+r+'</li>'; }).join('') + '</ul></div>';
+					formAlert.scrollIntoView({behavior: 'smooth', block: 'center'});
+				}
+			});
+		});
+	</script>
+{% endblock %}
+
+

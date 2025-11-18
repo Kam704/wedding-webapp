@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Panel administratora{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 animate-in">
+    <div>
+      <p class="eyebrow mb-1">Panel administratora</p>
+      <h1 class="h3 mb-0">Podgląd RSVP</h1>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('export_csv') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i> CSV</a>
+      <a href="{{ url_for('admin_logout') }}" class="btn btn-accent btn-sm">Wyloguj</a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="alert alert-success animate-in">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <section class="glass-card h-100 animate-in">
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-geo-alt-fill text-danger"></i>
+          <div>
+            <p class="eyebrow mb-1">Miejsca & linki</p>
+            <h2 class="h5 mb-0">Zarządzaj lokalizacjami</h2>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('set_locations') }}" class="row g-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-12">
+            <label class="form-label">Adres ceremonii</label>
+            <input name="wedding_location" class="form-control" value="{{ wedding_loc }}" placeholder="np. Kościół św. Anny, Kraków">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Etykieta ceremonii</label>
+            <input name="wedding_label" class="form-control" value="{{ wedding_label if wedding_label is defined else '' }}" placeholder="Ceremonia">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Mapa Google (ceremonia)</label>
+            <input name="wedding_map_url" class="form-control" value="{{ wedding_map_url }}" placeholder="https://...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Adres przyjęcia</label>
+            <input name="reception_location" class="form-control" value="{{ reception_loc }}" placeholder="np. Dwór, ul. ...">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Etykieta przyjęcia</label>
+            <input name="reception_label" class="form-control" value="{{ reception_label if reception_label is defined else '' }}" placeholder="Przyjęcie">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Mapa Google (przyjęcie)</label>
+            <input name="reception_map_url" class="form-control" value="{{ reception_map_url }}" placeholder="https://...">
+          </div>
+          <div class="col-12">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" role="switch" id="sameLocationSwitch" name="same_location_flag" {% if same_location %}checked{% endif %}>
+              <label class="form-check-label" for="sameLocationSwitch">Ślub i przyjęcie w tym samym miejscu</label>
+              <div class="form-text">Gdy zaznaczone, na stronie zaproszenia pokażemy jeden wpis zamiast dwóch.</div>
+            </div>
+          </div>
+          <div class="col-12">
+            <button class="btn btn-accent w-100">Zapisz lokalizacje</button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <div class="col-lg-7">
+      <section class="glass-card h-100 animate-in">
+        <div class="row g-3">
+          <div class="col-sm-6 col-12">
+            <div class="summary-card text-center h-100">
+              <h6>Zgłoszenia</h6>
+              <strong>{{ summary.submissions }}</strong>
+              <p class="mb-0 text-muted small">formularzy</p>
+            </div>
+          </div>
+          <div class="col-sm-6 col-12">
+            <div class="summary-card text-center h-100">
+              <h6>Łącznie gości</h6>
+              <strong>{{ summary.total_guests }}</strong>
+              <p class="mb-0 text-muted small">osób potwierdzonych</p>
+            </div>
+          </div>
+          <div class="col-sm-6 col-12">
+            <div class="summary-card text-center h-100">
+              <h6>Dzieci</h6>
+              <strong>{{ summary.total_children }}</strong>
+              <p class="mb-0 text-muted small">zapowiedzianych</p>
+            </div>
+          </div>
+          <div class="col-sm-6 col-12">
+            <div class="summary-card text-center h-100">
+              <h6>Wegetarianie</h6>
+              <strong>{{ summary.total_vegetarian }}</strong>
+              <p class="mb-0 text-muted small">w tym dzieci {{ summary.total_vegetarian_children }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="glass-card mt-4 animate-in">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-brush fs-4 text-primary"></i>
+      <div>
+        <p class="eyebrow mb-1">Treści zaproszenia</p>
+        <h2 class="h5 mb-0">Edytuj teksty hero i sekcji RSVP</h2>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('set_invite_copy') }}" class="row g-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="col-md-6">
+        <label class="form-label">Nagłówek nad tytułem</label>
+        <input name="hero_eyebrow" class="form-control" value="{{ invite_copy.hero_eyebrow }}" placeholder="np. Zapraszamy na świętowanie">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tytuł hero</label>
+        <input name="hero_title" class="form-control" value="{{ invite_copy.hero_title }}" placeholder="np. Bądź z nami w tym dniu">
+      </div>
+      <div class="col-12">
+        <label class="form-label">Opis hero</label>
+        <textarea name="hero_lead" class="form-control" rows="2" placeholder="Krótki opis">{{ invite_copy.hero_lead }}</textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Info (1)</label>
+        <input name="info_pill_one" class="form-control" value="{{ invite_copy.info_pill_one }}" placeholder="np. Termin ustalisz w panelu">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Info (2) / Dress code</label>
+        <input name="info_pill_two" class="form-control" value="{{ invite_copy.info_pill_two }}" placeholder="np. Dress code: ...">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Info (3) / Kontakt</label>
+        <input name="info_pill_three" class="form-control" value="{{ invite_copy.info_pill_three }}" placeholder="np. Masz pytanie?">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Tytuł sekcji planu</label>
+        <input name="plan_title" class="form-control" value="{{ invite_copy.plan_title }}" placeholder="np. Plan dnia">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Notka pod formularzem</label>
+        <textarea name="form_note" class="form-control" rows="2" placeholder="np. Po wysłaniu...">{{ invite_copy.form_note }}</textarea>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-accent">Zapisz treści</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="glass-card mt-4 animate-in">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-fingerprint fs-4 text-info"></i>
+      <div>
+        <p class="eyebrow mb-1">Bezpieczeństwo</p>
+        <h2 class="h5 mb-0">Lista dozwolonych adresów IP</h2>
+      </div>
+    </div>
+    <p class="text-muted small">Podaj jedno IP w linii. Obsługujemy też zapis CIDR (np. 192.168.0.0/24) i gwiazdkę jako wildcard (np. 10.0.*). Puste pole = brak ograniczeń lub wartość z .env.</p>
+    <form method="post" action="{{ url_for('set_admin_acl_route') }}" class="row g-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="col-12">
+        <label class="form-label">Adresy IP</label>
+        <textarea name="admin_acl" rows="4" class="form-control" placeholder="127.0.0.1&#10;192.168.0.0/24&#10;10.0.*">{{ admin_acl_text }}</textarea>
+        <div class="form-text">Twój adres: <strong>{{ current_admin_ip or 'nieznany' }}</strong></div>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-outline-secondary">Zapisz listę ACL</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="glass-card mt-4 animate-in">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-key fs-4 text-warning"></i>
+      <div>
+        <p class="eyebrow mb-1">Zaproszenia</p>
+        <h2 class="h5 mb-0">Twórz i edytuj kody z ograniczeniami</h2>
+      </div>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="border rounded-3 p-3 h-100 bg-light-subtle">
+          <h3 class="h6">Dodaj nowe zaproszenie</h3>
+          <form method="post" action="{{ url_for('admin_create_invitation') }}" class="row g-2 mt-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="col-12">
+              <label class="form-label">Imię</label>
+              <input name="first_name" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Nazwisko</label>
+              <input name="last_name" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Kod (unikalny)</label>
+              <input name="code" class="form-control form-control-sm" placeholder="np. KOWALSKI01" required>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="allowGuestNew" name="allow_guest">
+                <label class="form-check-label" for="allowGuestNew">Osoba towarzysząca</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Imię osoby towarzyszącej (opcjonalnie)</label>
+              <input name="guest_name" class="form-control form-control-sm" placeholder="np. Anna Nowak">
+              <div class="form-text">Pozostaw puste, by dopuścić bezimienne +1.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Maks. dzieci</label>
+              <input type="number" min="0" name="max_children" class="form-control form-control-sm" value="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notatka (opcjonalnie)</label>
+              <textarea name="notes" rows="2" class="form-control form-control-sm" placeholder="np. alergie"></textarea>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-accent btn-sm w-100">Dodaj</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">Istniejące zaproszenia</h3>
+          <span class="badge text-bg-secondary">{{ invitations|length }} wpisów</span>
+        </div>
+        {% if invitations %}
+          <div class="d-flex flex-column gap-3">
+            {% for invite in invitations %}
+              <div class="border rounded-3 p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <div>
+                    <strong>{{ invite.first_name }} {{ invite.last_name }}</strong>
+                    <small class="text-muted d-block">Kod: {{ invite.code }}</small>
+                  </div>
+                  <span class="status-chip">
+                    {% if invite.allow_guest %}
+                      <i class="bi bi-person-plus"></i>
+                      {{ invite.guest_name or '+1' }}
+                    {% else %}
+                      <i class="bi bi-person"></i> solo
+                    {% endif %}
+                    {% if invite.max_children > 0 %} · {{ invite.max_children }} dzieci{% endif %}
+                  </span>
+                </div>
+                <form id="updateInvite{{ invite.id }}" method="post" action="{{ url_for('admin_update_invitation', invitation_id=invite.id) }}" class="row g-2">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="col-md-6">
+                    <label class="form-label">Imię</label>
+                    <input name="first_name" class="form-control form-control-sm" value="{{ invite.first_name }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Nazwisko</label>
+                    <input name="last_name" class="form-control form-control-sm" value="{{ invite.last_name }}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Kod</label>
+                    <input name="code" class="form-control form-control-sm" value="{{ invite.code }}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Maks. dzieci</label>
+                    <input type="number" min="0" name="max_children" class="form-control form-control-sm" value="{{ invite.max_children }}">
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check mb-0">
+                      <input class="form-check-input" type="checkbox" id="allowGuest{{ invite.id }}" name="allow_guest" {% if invite.allow_guest %}checked{% endif %}>
+                      <label class="form-check-label" for="allowGuest{{ invite.id }}">Osoba towarzysząca</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Imię osoby towarzyszącej</label>
+                    <input name="guest_name" class="form-control form-control-sm" value="{{ invite.guest_name or '' }}" placeholder="np. Anna Nowak">
+                    <div class="form-text">Puste = +1 bez konkretnego imienia.</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Notatki</label>
+                    <textarea name="notes" rows="2" class="form-control form-control-sm">{{ invite.notes or '' }}</textarea>
+                  </div>
+                  <div class="col-12 d-flex gap-2 flex-wrap">
+                    <button class="btn btn-outline-primary btn-sm">Zapisz zmiany</button>
+                  </div>
+                </form>
+                <form class="mt-2" id="deleteInvite{{ invite.id }}" method="post" action="{{ url_for('admin_delete_invitation', invitation_id=invite.id) }}" onsubmit="return confirm('Usunąć to zaproszenie oraz powiązane RSVP?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-outline-danger btn-sm" type="submit">Usuń</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-info">Brak zaproszeń. Dodaj pierwszą parę po lewej stronie.</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <section class="glass-card mt-4 animate-in">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h2 class="h5 mb-0">Szczegóły zgłoszeń</h2>
+      <span class="status-chip"><i class="bi bi-people"></i> {{ rows|length }} wpisów</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Zaproszenie</th>
+            <th>Obecność</th>
+            <th>Gość</th>
+            <th>Wege (osoba)</th>
+            <th>Wege (gość)</th>
+            <th>Dzieci</th>
+            <th>Wege (dzieci)</th>
+            <th>Razem</th>
+            <th>Wege razem</th>
+            <th>Data</th>
+            <th>Akcje</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>
+                <strong>{{ row.first_name }} {{ row.last_name }}</strong>
+                <small class="text-muted d-block">Kod: {{ row.invitation_code or '—' }}</small>
+                {% if row.guest_name %}
+                  <small class="text-muted d-block">Osoba towarzysząca: {{ row.guest_name }}</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if row.attending == 'tak' %}
+                  <span class="badge text-bg-success">tak</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">nie</span>
+                {% endif %}
+              </td>
+              <td>{{ row.guest }}</td>
+              <td>{{ row.vegetarian }}</td>
+              <td>{{ row.vegetarian_guest }}</td>
+              <td>{{ row.children_count }}</td>
+              <td>{{ row.children_veg_count }}</td>
+              <td>{{ row.total }}</td>
+              <td>{{ row.veg_total }}</td>
+              <td>{{ row.created }}</td>
+              <td>
+                <form method="post" action="{{ url_for('admin_delete', entry_id=row.id) }}" onsubmit="return confirm('Na pewno usunąć to zgłoszenie?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger">Usuń</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+
